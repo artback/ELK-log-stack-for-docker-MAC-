@@ -1,0 +1,38 @@
+version: '3.3'
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.13.0-arm64
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.13.0-arm64
+    environment:
+      - STDOUT=true
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
+      - kibana
+    command: 'logstash -e "input { udp { port => 5000 } } output { elasticsearch { hosts => elasticsearch } }"'
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.13.0-arm64
+    links:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    ports:
+      - '5601:5601'
+    depends_on:
+      - elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.0-arm64
+    environment:
+      - discovery.type=single-node
+      - cluster.name=docker-logs-elk-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+
+
